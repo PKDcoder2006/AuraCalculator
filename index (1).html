@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Aura Ripple Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --neon-color: #ff5e00;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Comfortaa', cursive;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Neon Spinning Aura */
+        .neon-container {
+            position: relative;
+            padding: 5px;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .neon-container::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(transparent, var(--neon-color), transparent 25%);
+            top: -50%;
+            left: -50%;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .calculator {
+            position: relative;
+            background: #000;
+            display: grid;
+            grid-template-columns: repeat(4, 75px);
+            gap: 12px;
+            padding: 25px;
+            z-index: 1;
+        }
+
+        /* Button Base Styles */
+        button {
+            width: 75px;
+            height: 75px;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            position: relative; /* Necessary for ripple positioning */
+            overflow: hidden;    /* Clips the ripple */
+            outline: none;
+            transition: transform 0.1s;
+        }
+
+        /* Black Keys (Numbers) */
+        .num {
+            background-color: black;
+            color: white;
+            border: 2px solid white;
+        }
+
+        /* White Keys (Operations) */
+        .op {
+            background-color: white;
+            color: black;
+            border: 2px solid black;
+        }
+
+        button:active { transform: scale(0.96); }
+
+        /* Ripple Animation Styles */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+
+        /* White ripple for black buttons */
+        .num .ripple { background: rgba(255, 255, 255, 0.4); }
+        /* Black ripple for white buttons */
+        .op .ripple { background: rgba(0, 0, 0, 0.2); }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Display Screen Below */
+        #screen {
+            margin-top: 25px;
+            width: 335px;
+            height: 80px;
+            background: #000;
+            border: 2px solid white;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0 20px;
+            font-size: 1.6rem;
+            box-sizing: border-box;
+        }
+
+        .history-text { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
+
+        /* Navigation Buttons */
+        .nav-controls {
+            margin-top: 25px;
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 15px;
+        }
+        .nav-btn {
+            background: white;
+            color: black;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="neon-container">
+        <div class="calculator">
+            <button class="op" onclick="allClear()">AC</button>
+            <button class="op" onclick="deleteLast()">DEL</button>
+            <button class="op" onclick="append('%')">%</button>
+            <button class="op" onclick="append('/')">/</button>
+            
+            <button class="num" onclick="append('7')">7</button>
+            <button class="num" onclick="append('8')">8</button>
+            <button class="num" onclick="append('9')">9</button>
+            <button class="op" onclick="append('*')">×</button>
+            
+            <button class="num" onclick="append('4')">4</button>
+            <button class="num" onclick="append('5')">5</button>
+            <button class="num" onclick="append('6')">6</button>
+            <button class="op" onclick="append('-')">-</button>
+            
+            <button class="num" onclick="append('1')">1</button>
+            <button class="num" onclick="append('2')">2</button>
+            <button class="num" onclick="append('3')">3</button>
+            <button class="op" onclick="append('+')">+</button>
+            
+            <button class="num" onclick="append('0')">0</button>
+            <button class="num" onclick="append('.')">.</button>
+            <button class="op" style="grid-column: span 2; width: 162px;" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <div id="screen">
+        <div class="history-text" id="history-label">History</div>
+        <div id="display-val">0</div>
+    </div>
+
+    <div class="nav-controls">
+        <button class="nav-btn op" style="grid-area: up;" onclick="navHistory('up')">▲</button>
+        <button class="nav-btn op" style="grid-area: left;">◀</button>
+        <button class="nav-btn op" style="grid-area: right;">▶</button>
+        <button class="nav-btn op" style="grid-area: down;" onclick="navHistory('down')">▼</button>
+    </div>
+
+    <script>
+        let currentInput = "";
+        let history = [];
+        let historyIndex = -1;
+        const displayVal = document.getElementById('display-val');
+        const historyLabel = document.getElementById('history-label');
+
+        // Logic for Ripple Effect
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                let x = e.clientX - e.target.getBoundingClientRect().left;
+                let y = e.clientY - e.target.getBoundingClientRect().top;
+
+                let ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                this.appendChild(ripple);
+
+                setTimeout(() => { ripple.remove(); }, 600);
+            });
+        });
+
+        function append(value) {
+            currentInput += value;
+            updateScreen();
+        }
+
+        function allClear() {
+            currentInput = "";
+            historyLabel.innerText = "History";
+            updateScreen();
+        }
+
+        function deleteLast() {
+            currentInput = currentInput.toString().slice(0, -1);
+            updateScreen();
+        }
+
+        function updateScreen() {
+            displayVal.innerText = currentInput || "0";
+        }
+
+        function calculate() {
+            try {
+                if (!currentInput) return;
+                let expression = currentInput.replace(/%/g, '/100');
+                let result = eval(expression).toString();
+                history.push(currentInput + " = " + result);
+                historyIndex = history.length;
+                currentInput = result;
+                updateScreen();
+            } catch {
+                displayVal.innerText = "Error";
+                currentInput = "";
+            }
+        }
+
+        function navHistory(dir) {
+            if (history.length === 0) return;
+            if (dir === 'up' && historyIndex > 0) historyIndex--;
+            else if (dir === 'down' && historyIndex < history.length - 1) historyIndex++;
+            historyLabel.innerText = "Entry #" + (historyIndex + 1);
+            displayVal.innerText = history[historyIndex];
+        }
+    </script>
+</body>
+
+</html>
